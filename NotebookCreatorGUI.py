@@ -62,13 +62,28 @@ with st.sidebar:
     
     # File options
     st.markdown("#### 📁 File Options")
-    filename = st.text_input("📝 Output File Name", value="chains_and_thoughts.ipynb", help="Name for your notebook file")
+    problem_number = st.text_input("🔢 Codeforces Problem Number (e.g., 100E)", value="", help="Enter problem number in format like 100E")
+    task_id = st.text_input("🆔 Task ID (e.g., 76153)", value="", help="Enter numeric task ID")
     
-    # Validation indicator
-    if filename.endswith('.ipynb'):
-        st.success("✅ Valid notebook filename")
+    # Generate filename
+    filename = f"{problem_number}_{task_id}.ipynb" if problem_number and task_id else "chains_and_thoughts.ipynb"
+    st.text_input("📝 Output File Name", value=filename, disabled=True, help="Generated filename based on problem number and task ID")
+    
+    # Validation for problem number and task ID
+    if problem_number and re.match(r"^\d+[A-Z]$", problem_number):
+        st.success("✅ Valid problem number format")
+    elif problem_number:
+        st.warning("⚠️ Problem number should be in format like 100E (digits followed by a single letter)")
+    
+    if task_id and task_id.isdigit():
+        st.success("✅ Valid task ID format")
+    elif task_id:
+        st.warning("⚠️ Task ID should be numeric")
+    
+    if problem_number and task_id and re.match(r"^\d+[A-Z]$", problem_number) and task_id.isdigit():
+        st.success(f"✅ Notebook will be saved as {filename}")
     else:
-        st.warning("⚠️ Filename should end with .ipynb")
+        st.warning("⚠️ Enter valid problem number and task ID to generate filename")
     
     st.markdown("---")
     
@@ -173,7 +188,7 @@ with col4:
 # Status and results area
 status_container = st.container()
 
-def create_notebook(text, filename, add_timestamps):
+def create_notebook(text, filename, add_timestamps, add_separators):
     try:
         if not text.strip():
             return None, "Please enter some CHAIN/THOUGHT/RESPONSE text"
@@ -247,29 +262,29 @@ def create_notebook(text, filename, add_timestamps):
 
 # Handle button actions
 if create_button:
-    if not filename.endswith('.ipynb'):
-        filename += '.ipynb'
-    
-    with st.spinner('🔄 Creating notebook...'):
-        result, error = create_notebook(text_input, filename, add_timestamps)
-        
-        if result:
-            st.markdown('<div class="success-box">✅ <strong>Notebook created successfully!</strong></div>', unsafe_allow_html=True)
+    if not (problem_number and task_id and re.match(r"^\d+[A-Z]$", problem_number) and task_id.isdigit()):
+        status_container.error("❌ Please enter a valid problem number (e.g., 100E) and task ID (e.g., 76153)")
+    else:
+        with st.spinner('🔄 Creating notebook...'):
+            result, error = create_notebook(text_input, filename, add_timestamps, add_separators)
             
-            col1, col2 = st.columns([1, 4])
-            with col1:
-                st.download_button(
-                    label="⬇️ Download Notebook",
-                    data=result,
-                    file_name=filename,
-                    mime="application/json",
-                    type="primary",
-                    use_container_width=True
-                )
-            with col2:
-                st.success(f"Ready to download as **{filename}**")
-        else:
-            st.error(f"❌ {error}")
+            if result:
+                st.markdown('<div class="success-box">✅ <strong>Notebook created successfully!</strong></div>', unsafe_allow_html=True)
+                
+                col1, col2 = st.columns([1, 4])
+                with col1:
+                    st.download_button(
+                        label="⬇️ Download Notebook",
+                        data=result,
+                        file_name=filename,
+                        mime="application/json",
+                        type="primary",
+                        use_container_width=True
+                    )
+                with col2:
+                    st.success(f"Ready to download as **{filename}**")
+            else:
+                st.error(f"❌ {error}")
 
 if clear_button:
     st.rerun()
@@ -286,7 +301,8 @@ if text_input.strip() and 'preview_button' in locals() and preview_button:
             if block:
                 st.markdown(f"**Cell {i+1}:**")
                 st.markdown(block)
-                st.markdown("---")
+                if add_separators:
+                    st.markdown("---")
         
         # Show RESPONSE if exists
         response_match = re.search(r"\*\*\[RESPONSE\]\*\*", text_input, re.MULTILINE)
